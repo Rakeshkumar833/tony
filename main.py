@@ -81,14 +81,20 @@ async def get_help(bot, message) -> None:
 
 @jvbot.on_message(filters.private & filters.regex(pattern=".*http.*") & filters.user(AUTH_USERS))
 async def main_func(bot: Client, message: Message) -> None:
-    url_msg = message.text.split(" ")
-    if len(url_msg) != 2:
-        return await message.reply_text(text="Please send link this formate \n\n`link timestamp`")
+    url_msg = message.text.split(" ", 2)
+    if len(url_msg) != 3:
+        return await message.reply_text(text="Please send link this formate \n\n`link timestamp filename`")
     else:
         msg_ = await message.reply_text("Please wait ....")
         url = url_msg[0]
         timess = str(url_msg[1])
-        await uploader_main(url, msg_, timess)
+        filename = str(url_msg[2])
+        thumb = str(message.from_user.id) + ".jpg"
+        if os.path.exists(thumb):
+            thumb = thumb
+        else:
+            thumb = None
+        await uploader_main(url, msg_, timess, filename, thumb)
         
 @jvbot.on_callback_query(filters.regex("time.*?"))
 async def cb_handler_main(bot: Client, cb: CallbackQuery):
@@ -96,6 +102,29 @@ async def cb_handler_main(bot: Client, cb: CallbackQuery):
     msg = cb.message
     user_link = msg.reply_to_message.text.split(" ")[0]
     await uploader_main(user_link, msg, cb_data)
+
+@jvbot.on_message(filters.photo & filters.private)
+async def sav_Thumb_Handler(bot: jvbot, message: Message):
+    sts_msg = await message.reply_text("Please wait ...")
+    filename = await message.download(str(message.from_user.id) + ".jpg")
+    await sts_msg.edit("custom thumbnail saved ....")
+
+@jvbot.on_message(filters.command("delthumb") & filters.private)
+async def tg_Uploader_Handler(bot: jvbot, message: Message):
+    if os.path.exists(str(message.from_user.id) + ".jpg"):
+        os.remove(str(message.from_user.id) + ".jpg")
+        await message.reply_text("custom thumbnail cleared succesfully")
+    else:
+        await message.reply_text("Thumbnail not found, send photo to save thumbnail.")
+
+
+@jvbot.on_message(filters.command("getthumb") & filters.private)
+async def tg_Uploader_Handler(bot: jvbot, message: Message):
+    if os.path.exists(str(message.from_user.id) + ".jpg"):
+        await message.reply_photo(str(message.from_user.id) + ".jpg")
+    else:
+        await message.reply_text("Thumbnail not found, send photo to save thumbnail.")
+
 
 def getListOfFiles(dirName):
     # create a list of file and sub directories 
@@ -114,13 +143,16 @@ def getListOfFiles(dirName):
                 
     return allFiles
 
-async def uploader_main(usr_link: str, msg: Message, cb_data: str):
+async def uploader_main(usr_link: str, msg: Message, cb_data: str, filename="", j_thumb):
     await msg.edit(text=f"{cb_data} Recording started,\nthis will take time ...",
                    reply_markup=None)
     video_dir_path = join(DOWNLOAD_DIRECTORY, str(time.time()))
     if not os.path.isdir(video_dir_path):
         os.makedirs(video_dir_path)
-    video_file_path = join(video_dir_path, str(time.time()) + ".mkv")
+    if filename != "":
+        video_file_path = join(video_dir_path, filename + ".mkv")
+    else:
+        video_file_path = join(video_dir_path, f"jv_{time.time()}.mkv")
     #vide_seconds = int(TIME_VALUES_SEC.get(str(cb_data), None))
     _LOG.info(f"Recording {cb_data} from {usr_link}")
     error_recording_video = (await runcmd(f"ffmpeg -probesize 10000000 -analyzeduration 15000000 -timeout 9000000 -i {usr_link} -t {cb_data} -codec copy -map 0:v -map 0:a -ignore_unknown {video_file_path}"))[1]
@@ -158,6 +190,7 @@ async def uploader_main(usr_link: str, msg: Message, cb_data: str):
             v_duration = await get_video_duration(video_file_path)
             await msg.reply_video(video=video_file_path,
                                   duration=v_duration,
+                                  thumb=j_thumb,
                                   progress=progress_for_pyrogram,
                                   progress_args=(msg, time.time()))
         except Exception as e:
