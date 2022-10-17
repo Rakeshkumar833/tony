@@ -143,7 +143,7 @@ def getListOfFiles(dirName):
                 
     return allFiles
 
-async def uploader_main(usr_link: str, msg: Message, cb_data: str, filename="", j_thumb):
+async def uploader_main(usr_link: str, msg: Message, cb_data: str, filename="", j_thumb=None):
     await msg.edit(text=f"{cb_data} Recording started,\nthis will take time ...",
                    reply_markup=None)
     video_dir_path = join(DOWNLOAD_DIRECTORY, str(time.time()))
