@@ -191,6 +191,7 @@ async def uploader_main(usr_link: str, msg: Message, cb_data: str, filename="", 
             await msg.reply_video(video=video_file_path,
                                   duration=v_duration,
                                   thumb=j_thumb,
+                                  caption=f"`{os.path.basename(video_file_path)}`",
                                   progress=progress_for_pyrogram,
                                   progress_args=(msg, time.time()))
         except Exception as e:
